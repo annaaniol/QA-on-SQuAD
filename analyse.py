@@ -15,6 +15,7 @@ from operator import itemgetter
 bidaf_prediction_file = 'BiDAF/prediction0-epoch7.out'
 mnemonic_prediction_file = 'MnemonicReader/SQuAD-dev-v1.1-m_reader.preds'
 rnet_prediction_file = 'R-net/SQuAD-dev-v1.1-r_net.preds'
+qanet_prediction_file = 'QANet/answers_reindexed.json'
 dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
 
 metrics = SQuAD_metrics()
@@ -117,15 +118,16 @@ def analyze_model(model_name, model_prediction_file):
     stats_f1 = OrderedDict(sorted(stats_f1.items(), key = itemgetter(0), reverse = False))
     stats_em = OrderedDict(sorted(stats_em.items(), key = itemgetter(0), reverse = False))
 
-    print('\ntotal F1 ' + str(f1))
+    print('\n' + str(model_name) + ' ' + str(total) + ' evaluation questions')
+    print('total F1 ' + str(f1))
     for type, f1_list in stats_f1.items():
         mean_f1 = np.mean(f1_list)
-        print(type + ' ' + str(mean_f1))
+        # print(type + ' ' + str(mean_f1))
 
-    print('\ntotal EM ' + str(exact_match))
+    print('total EM ' + str(exact_match))
     for type, em_list in stats_em.items():
         mean_em = np.mean(em_list)
-        print(type + ' ' + str(mean_em))
+        # print(type + ' ' + str(mean_em))
 
     result_dict = {}
     result_dict['f1'] = [stats_f1, f1]
@@ -139,7 +141,7 @@ stats_em_list = []
 em_list = []
 names_list = []
 
-models_to_process = [('R-net', rnet_prediction_file), ('Mnemonic Reader', mnemonic_prediction_file), ('BiDAF', bidaf_prediction_file)]
+models_to_process = [('R-net', rnet_prediction_file), ('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
 for model in models_to_process:
     name = model[0]
     file = model[1]

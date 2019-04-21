@@ -18,10 +18,9 @@ class Plotter():
             stats = model[0]
             total_mean = model[1]
             model_name = model[2]
-            print('plotting ' + str(model_name))
 
             objects = list(stats.keys())
-            print(objects)
+            # print(objects)
             y_pos = np.arange(len(objects))
             mean = []
             for list_of_values in stats.values():
