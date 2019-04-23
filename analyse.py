@@ -96,8 +96,8 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
             metrics.f1_score, prediction, ground_truths_per_question)
         exact_match += exact_match_here
         f1 += f1_here
-        eval_dict[qa['id']] = {'em': exact_match_here, 'f1': f1_here}
-        type_dict[qa['id']] = determine_type(qa['question'])
+        eval_dict[id] = {'em': exact_match_here, 'f1': f1_here}
+        type_dict[id] = questions[id][0]
         total += 1
         # print('F1:' + str(f1_here))
         # print('EM: ' + str(exact_match_here))
