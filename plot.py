@@ -3,8 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Plotter():
-    def __init__(self):
-        pass
+    def __init__(self, type='original', percentage=0):
+        self.type = type
+        self.percentage = percentage
 
     def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name):
         plt.rcParams["figure.figsize"] = (16,10)
@@ -36,6 +37,9 @@ class Plotter():
         plt.title(metric_name)
         plt.legend()
 
-        plt.savefig('{}.jpg'.format(metric_name))
+        if self.type == 'original':
+            plt.savefig('plots/{}.jpg'.format(metric_name))
+        else:
+            plt.savefig('plots/splitted/{}_{}.jpg'.format(metric_name,str(self.percentage)))
 
         plt.clf()
