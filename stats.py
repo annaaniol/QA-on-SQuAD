@@ -1,10 +1,13 @@
 import numpy as np
 from operator import itemgetter
 from pprint import pprint
+from prettytable import PrettyTable
+
 
 class Stats():
     def __init__(self):
         self.models = {}
+        self.type_to_count_dict = None
 
     def analyse(self, stats, total):
         for type, list in stats.items():
@@ -13,6 +16,36 @@ class Stats():
 
     def add_model_data(self, eval_dict, type_dict, model_name):
         self.models[model_name] = [eval_dict, type_dict]
+
+    def compare_same_results_per_type(self, model_name, same_F1, same_EM):
+        id_to_type_dict = self.models[model_name][1]
+        type_to_metrics_dict = {}
+
+        for id in same_F1:
+            type = id_to_type_dict[id]
+            if type not in type_to_metrics_dict:
+                type_to_metrics_dict[type] = {'f1':[], 'em':[]}
+            type_to_metrics_dict[type]['f1'].append(id)
+        for id in same_EM:
+            type = id_to_type_dict[id]
+            if type not in type_to_metrics_dict:
+                type_to_metrics_dict[type] = {'f1':[], 'em':[]}
+            type_to_metrics_dict[type]['em'].append(id)
+
+        t = PrettyTable(['type','equal F1','equal EM','total count'])
+
+        for type, metrics in sorted(type_to_metrics_dict.items(), key=lambda x: x[0]):
+            f1_percentage = round(100*len(metrics['f1'])/self.type_to_count_dict[type],1)
+            em_percentage = round(100*len(metrics['em'])/self.type_to_count_dict[type],1)
+            t.add_row([type,'{} ({}%)'.format(len(metrics['f1']),f1_percentage),
+                '{} ({}%)'.format(len(metrics['em']),em_percentage),
+                self.type_to_count_dict[type]])
+        sum_f1_percentage = round(100*len(same_F1)/sum(self.type_to_count_dict.values()),1)
+        sum_em_percentage = round(100*len(same_EM)/sum(self.type_to_count_dict.values()),1)
+        t.add_row(['SUM','{} ({}%)'.format(len(same_F1),sum_f1_percentage),
+            '{} ({}%)'.format(len(same_EM),sum_em_percentage),
+            sum(self.type_to_count_dict.values())])
+        print(t)
 
     def compare_models(self, base_model, compared_model):
         base_eval_dict = self.models[base_model][0]
@@ -35,10 +68,14 @@ class Stats():
                     same_EM_values.append(em)
             else:
                 missing += 1
+
         print('\n{} ({}) vs. {} ({})'.format(base_model,str(len(base_eval_dict)),compared_model,str(len(eval_dict))))
-        print('same F1: {}'.format(str(len(same_F1))))
+
+        self.compare_same_results_per_type(base_model,same_F1,same_EM)
+
+        # print('same F1: {}'.format(str(len(same_F1))))
         print('average same F1: {}'.format(str(np.mean(same_F1_values))))
-        print('same EM: {}'.format(str(len(same_EM))))
+        # print('same EM: {}'.format(str(len(same_EM))))
         print('same Trues: {}'.format(str(same_EM_values.count(True))))
 
         if missing > 0:

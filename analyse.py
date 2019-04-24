@@ -84,11 +84,11 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
     stats_em = {}
     f1 = exact_match = total = 0
     eval_dict = {}
-    type_dict = {}
+    id_to_type_dict = {}
     for id, prediction in predictions.items():
         ground_truths_per_question = ground_truths[id]
         type = questions[id][0]
-        # print(questions[id][1])
+        id_to_type_dict[id] = type
 
         exact_match_here = metrics.metric_max_over_ground_truths(
             metrics.exact_match_score, prediction, ground_truths_per_question)
@@ -97,7 +97,6 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
         exact_match += exact_match_here
         f1 += f1_here
         eval_dict[id] = {'em': exact_match_here, 'f1': f1_here}
-        type_dict[id] = questions[id][0]
         total += 1
         # print('F1:' + str(f1_here))
         # print('EM: ' + str(exact_match_here))
@@ -117,7 +116,7 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
 
     print('\n' + str(model_name) + ' ' + str(total) + ' evaluation questions')
     print('total F1 ' + str(f1))
-    stats.add_model_data(eval_dict,type_dict,model_name)
+    stats.add_model_data(eval_dict,id_to_type_dict,model_name)
     # for type, f1_list in stats_f1.items():
     #     mean_f1 = np.mean(f1_list)
     #     print(type + ' ' + str(mean_f1))
@@ -134,6 +133,20 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
     result_dict['em'] = [stats_em, exact_match]
     return result_dict
 
+
+def count_question_types(dev_pattern_file):
+    type_to_count_dict = {}
+    with open(dev_pattern_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)['data']
+        for article in data:
+            for paragraph in article['paragraphs']:
+                for qa in paragraph['qas']:
+                    type = determine_type(qa['question'])
+                    if type in type_to_count_dict:
+                        type_to_count_dict[type] += 1
+                    else:
+                        type_to_count_dict[type] = 1
+    return type_to_count_dict
 
 def main():
     parser = argparse.ArgumentParser()
@@ -166,6 +179,8 @@ def main():
     else:
         print('type must be original or splitted')
         sys.exit(1)
+
+    stats.type_to_count_dict = count_question_types(dev_pattern_file)
 
     for model in models_to_process:
         name = model[0]
