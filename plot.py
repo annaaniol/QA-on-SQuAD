@@ -3,11 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Plotter():
-    def __init__(self, type='original', percentage=0):
+    def __init__(self, type='original', percentage=5):
         self.type = type
         self.percentage = percentage
 
-    def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name):
+    def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name, type):
         plt.rcParams["figure.figsize"] = (16,10)
         colors = ['r','g', 'grey']
         line_styles = ['--', '--', '--']
@@ -21,7 +21,6 @@ class Plotter():
             model_name = model[2]
 
             objects = list(stats.keys())
-            # print(objects)
             y_pos = np.arange(len(objects))
             mean = []
             for list_of_values in stats.values():
@@ -40,6 +39,6 @@ class Plotter():
         if self.type == 'original':
             plt.savefig('plots/{}.jpg'.format(metric_name))
         else:
-            plt.savefig('plots/splitted/{}_{}.jpg'.format(metric_name,str(self.percentage)))
+            plt.savefig('plots/splitted/{}_{}_{}.jpg'.format(metric_name,str(self.percentage),type))
 
         plt.clf()

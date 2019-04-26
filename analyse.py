@@ -12,6 +12,8 @@ from stats import Stats
 import numpy as np
 from collections import OrderedDict
 from operator import itemgetter
+from prettytable import PrettyTable
+from tabulate import tabulate
 
 metrics = SQuAD_metrics()
 stats = Stats()
@@ -116,17 +118,8 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
 
     print('\n' + str(model_name) + ' ' + str(total) + ' evaluation questions')
     print('total F1 ' + str(f1))
-    stats.add_model_data(eval_dict,id_to_type_dict,model_name)
-    # for type, f1_list in stats_f1.items():
-    #     mean_f1 = np.mean(f1_list)
-    #     print(type + ' ' + str(mean_f1))
-    #     print(type + ' ' + str(len(f1_list)) + ' ' + str(int(100*len(f1_list)/total)))
-
     print('total EM ' + str(exact_match))
-    # for type, em_list in stats_em.items():
-    #     mean_em = np.mean(em_list)
-    #     print(type + ' ' + str(mean_em))
-    #     print(type + ' ' + str(len(em_list)) + ' ' + str(int(100*len(em_list)/total)))
+    stats.add_model_data(eval_dict,id_to_type_dict,model_name)
 
     result_dict = {}
     result_dict['f1'] = [stats_f1, f1]
@@ -134,7 +127,7 @@ def analyze_model(model_name, model_prediction_file, dev_pattern_file):
     return result_dict
 
 
-def count_question_types(dev_pattern_file):
+def count_question_types(dev_pattern_file, print_latex):
     type_to_count_dict = {}
     with open(dev_pattern_file, 'r', encoding='utf-8') as f:
         data = json.load(f)['data']
@@ -146,15 +139,30 @@ def count_question_types(dev_pattern_file):
                         type_to_count_dict[type] += 1
                     else:
                         type_to_count_dict[type] = 1
+
+    pretty_table = PrettyTable(['Type','Total count','Percentage'])
+    tabulate_table = []
+    headers = ['Type','Total count','Percentage']
+    for type, count in sorted(type_to_count_dict.items(), key=lambda x: x[0]):
+        percentage = round(100 * count / sum(type_to_count_dict.values()),1)
+        pretty_table.add_row([type,count,'{}%'.format(percentage)])
+        tabulate_table.append([type,count,'{}%'.format(percentage)])
+    pretty_table.add_row(['SUM',sum(type_to_count_dict.values()),'100%'])
+    tabulate_table.append(['SUM',sum(type_to_count_dict.values()),'100%'])
+    print(pretty_table)
+    if print_latex:
+        print(tabulate(tabulate_table, headers, tablefmt="latex"))
     return type_to_count_dict
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--type', dest='type', default='original')
-    parser.add_argument('--percentage', dest='percentage', default='0')
+    parser.add_argument('--percentage', dest='percentage', default='5')
+    parser.add_argument('--latex', dest='latex', default=False)
     args = parser.parse_args()
     type = args.type
     percentage = args.percentage
+    print_latex = args.latex
 
     stats_f1_list = []
     f1_list = []
@@ -166,21 +174,29 @@ def main():
     if type == 'original':
         dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
         bidaf_prediction_file = 'BiDAF/prediction0-epoch7.out'
-        mnemonic_prediction_file = 'MnemonicReader/SQuAD-dev-v1.1-m_reader.preds'
+        mnemonic_prediction_file = 'MnemonicReader/dev_full_training-m_reader.preds'
         rnet_prediction_file = 'R-net/SQuAD-dev-v1.1-r_net.preds'
         qanet_prediction_file = 'QANet/answers_reindexed.json'
 
         models_to_process = [('R-net', rnet_prediction_file), ('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
-    elif type == 'splitted':
-        dev_pattern_file = 'data/splitted/class_dev_{}.json'.format(str(int(percentage)))
-        mnemonic_prediction_file = 'MnemonicReader/splitted/class_dev_{}-m_reader.preds'.format(str(int(percentage)))
+    elif type == 'class_dev': # preds on 5% of training (pre-evaluation), trained with splitted training
+        dev_pattern_file = 'data/splitted/class_dev_5.json'
+        mnemonic_prediction_file = 'MnemonicReader/splitted/class_dev_5-splitted_5.preds'
+        qanet_prediction_file = 'QANet/splitted/class_dev_5_reindexed.json'
 
-        models_to_process = [('Mnemonic Reader', mnemonic_prediction_file)]
+        models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+    elif type =='dev_on_splitted': # preds on original dev, trained with splitted training
+        dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
+        qanet_prediction_file = 'QANet/splitted/dev_splitted_95_reindexed.json'
+        mnemonic_prediction_file = 'MnemonicReader/dev_95_splitted_model.preds'
+
+        models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
     else:
-        print('type must be original or splitted')
+        print('type must be original, class_dev or dev_on_splitted')
         sys.exit(1)
 
-    stats.type_to_count_dict = count_question_types(dev_pattern_file)
+    stats.type_to_count_dict = count_question_types(dev_pattern_file,print_latex)
+    stats.print_latex = print_latex
 
     for model in models_to_process:
         name = model[0]
@@ -194,8 +210,8 @@ def main():
 
     stats.summarize()
 
-    plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1')
-    plotter.plot_bar(stats_em_list, em_list, names_list, 'EM')
+    plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
+    plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
 
 if __name__ == '__main__':
     main()
