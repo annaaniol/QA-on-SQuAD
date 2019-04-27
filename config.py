@@ -36,3 +36,5 @@ DEV_ON_SPLITTED_CONFIG = {
     'models_to_process': [('Mnemonic Reader', DEV_ON_SPLITTED_FILES['mnemonic_prediction_file']),
     ('QANet', DEV_ON_SPLITTED_FILES['qanet_prediction_file'])]
 }
+
+ENSEMBLE_FILE = 'ensemble/predictions.json'

@@ -199,19 +199,21 @@ class Analyser():
             dev_pattern_file =  config.ORIGINAL_CONFIG['dev_pattern_file']
             models_to_process = config.ORIGINAL_CONFIG['models_to_process']
         elif type == 'class_dev': # preds on 5% of training (pre-evaluation), trained with splitted training
-            dev_pattern_file =  config.CLASS_DEV_CONFIG['dev_pattern_file']
+            dev_pattern_file = config.CLASS_DEV_CONFIG['dev_pattern_file']
             models_to_process = config.CLASS_DEV_CONFIG['models_to_process']
         elif type == 'dev_on_splitted': # preds on original dev, trained with splitted training
             dev_pattern_file =  config.DEV_ON_SPLITTED_CONFIG['dev_pattern_file']
             models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
         elif type == 'ensemble':
             # original dev to construct id_to_type_dict
+            print('\n 1. Step: original dev to construct id_to_type_dict\n')
             dev_pattern_file = config.ORIGINAL_CONFIG['dev_pattern_file']
             id_to_type = self.get_id_to_type_dict(dev_pattern_file)
             for k,v in id_to_type.items():
                 self.id_to_type_dict[k] = v
 
             # class_dev to obtain weights
+            print('\n 2. Step: class_dev to obtain weights\n')
             dev_pattern_file = config.CLASS_DEV_CONFIG['dev_pattern_file']
             models_to_process = config.CLASS_DEV_CONFIG['models_to_process']
             self.stats.type_to_count_dict = self.count_question_types(dev_pattern_file,print_latex)
@@ -227,22 +229,51 @@ class Analyser():
                 em_list.append(results['em'][1])
                 names_list.append(name)
 
-            self.stats.summarize()
-
+            # self.stats.summarize()
             plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
             plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
 
             weights = self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
 
             # dev_on_splitted to get candidate answers
+            print('\n 3. Step: dev_on_splitted to get candidate answers\n')
             models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
             candidate_predictions = self.get_candidate_predictions(models_to_process)
-            # pprint(candidate_predictions)
 
             # ensemble.predict to get ensemble answers -> save to file
+            print('\n 4. Step: ensemble.predict to get ensemble answers -> save to file\n')
             ensemble_predictions = self.ensembler.predict(candidate_predictions, self.id_to_type_dict, weights)
+            with open(config.ENSEMBLE_FILE, 'w') as f:
+                json.dump(ensemble_predictions,f)
 
-            # evaluate ensemble predictions (vs. full training results)
+            # evaluate ensemble predictions (vs. 95% of training results)
+            # ??? vs. splitted or full training
+            print('\n 5. Step: evaluate ensemble predictions (vs. 95% of training results)\n')
+            dev_pattern_file =  config.DEV_ON_SPLITTED_CONFIG['dev_pattern_file']
+            models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
+            models_to_process.append(('Ensemble',config.ENSEMBLE_FILE))
+            print(models_to_process)
+
+            stats_f1_list = []
+            f1_list = []
+            stats_em_list = []
+            em_list = []
+            names_list = []
+            for model in models_to_process:
+                name = model[0]
+                print('\nAnalysing {}...'.format(name))
+                file = model[1]
+                results = self.analyze_model(name, file, dev_pattern_file)
+                stats_f1_list.append(results['f1'][0])
+                f1_list.append(results['f1'][1])
+                stats_em_list.append(results['em'][0])
+                em_list.append(results['em'][1])
+                names_list.append(name)
+
+            # self.stats.summarize()
+
+            plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
+            plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
 
         else:
             print('type must be original, class_dev, dev_on_splitted or ensemble')

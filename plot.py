@@ -10,9 +10,9 @@ class Plotter():
     def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name, type):
         plt.rcParams["figure.figsize"] = (14,9)
         plt.rcParams["font.size"] = 17
-        colors = ['r','g', 'grey']
-        line_styles = ['--', '--', '--']
-        distances = [-0.3, 0, 0.3]
+        colors = ['red', 'green', 'grey', 'orange']
+        line_styles = ['--', '--', '--', '--']
+        distances = [-0.3, -0.1, 0.1, 0.3]
 
         ax = plt.subplot(111)
 
@@ -20,6 +20,7 @@ class Plotter():
             stats = model[0]
             total_mean = model[1]
             model_name = model[2]
+            print(counter,model_name)
 
             objects = list(stats.keys())
             y_pos = np.arange(len(objects))

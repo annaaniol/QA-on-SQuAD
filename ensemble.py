@@ -34,7 +34,7 @@ class Ensembler():
             zero_one_weights_dict[type][max(dict.items(), key=operator.itemgetter(1))[0]] = 1.0
             for model, _ in sorted(dict.items(), key=operator.itemgetter(1), reverse=True)[1:]:
                 zero_one_weights_dict[type][model] = 0.0
-        pprint(zero_one_weights_dict)
+        # pprint(zero_one_weights_dict)
         return zero_one_weights_dict
 
     def count_weights(self, stats_list, model_name_list, metric):
@@ -47,7 +47,7 @@ class Ensembler():
     def predict(self, candidate_predictions, id_to_type_dict, weights):
         # candidate_predictions = {model1: {id1: pred1, id2: pred2}, model2: {...}}
         # weights = {type1: {model1: weight1, model2: weight}, type2: {...}}
-        id_to_predictions_dict = {} # id -> {pred1: 0.8, pred2: 03}
+        id_to_predictions_dict = {} # id -> [(pred1: 0.8), (pred2: 03)]
 
         for model_name, predictions_dict in candidate_predictions.items():
             for id, prediction in predictions_dict.items():
@@ -56,4 +56,8 @@ class Ensembler():
                 question_type = id_to_type_dict[id]
                 id_to_predictions_dict[id].append((prediction,weights[question_type][model_name]))
 
-        pprint(id_to_predictions_dict)
+        ensemble_predictions = {}
+        for id, predictions in id_to_predictions_dict.items():
+            predictions.sort(key=lambda x: x[1], reverse=True)
+            ensemble_predictions[id] = predictions[0][0]
+        return ensemble_predictions
