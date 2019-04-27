@@ -15,6 +15,7 @@ from collections import OrderedDict
 from operator import itemgetter
 from prettytable import PrettyTable
 from tabulate import tabulate
+import config
 
 class Analyser():
     def __init__(self, ensembler):
@@ -195,39 +196,24 @@ class Analyser():
         plotter = Plotter(type,percentage)
 
         if type == 'original':
-            dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
-            bidaf_prediction_file = 'BiDAF/prediction0-epoch1.out'
-            mnemonic_prediction_file = 'MnemonicReader/dev_full_training-m_reader.preds'
-            rnet_prediction_file = 'R-net/SQuAD-dev-v1.1-r_net.preds'
-            qanet_prediction_file = 'QANet/answers_reindexed.json'
-
-            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file),
-                ('QANet', qanet_prediction_file), ('BiDAF', bidaf_prediction_file)]
+            dev_pattern_file =  config.ORIGINAL_CONFIG['dev_pattern_file']
+            models_to_process = config.ORIGINAL_CONFIG['models_to_process']
         elif type == 'class_dev': # preds on 5% of training (pre-evaluation), trained with splitted training
-            dev_pattern_file = 'data/splitted/class_dev_5.json'
-            mnemonic_prediction_file = 'MnemonicReader/splitted/class_dev_5-splitted_5.preds'
-            qanet_prediction_file = 'QANet/splitted/answers_class_dev_5_reindexed_23.json'
-
-            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+            dev_pattern_file =  config.CLASS_DEV_CONFIG['dev_pattern_file']
+            models_to_process = config.CLASS_DEV_CONFIG['models_to_process']
         elif type == 'dev_on_splitted': # preds on original dev, trained with splitted training
-            dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
-            qanet_prediction_file = 'QANet/splitted/dev_splitted_95_reindexed.json'
-            mnemonic_prediction_file = 'MnemonicReader/dev_95_splitted_model.preds'
-
-            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+            dev_pattern_file =  config.DEV_ON_SPLITTED_CONFIG['dev_pattern_file']
+            models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
         elif type == 'ensemble':
             # original dev to construct id_to_type_dict
-            dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
+            dev_pattern_file = config.ORIGINAL_CONFIG['dev_pattern_file']
             id_to_type = self.get_id_to_type_dict(dev_pattern_file)
             for k,v in id_to_type.items():
                 self.id_to_type_dict[k] = v
-                
-            # class_dev to obtain weights
-            dev_pattern_file = 'data/splitted/class_dev_5.json'
-            mnemonic_prediction_file = 'MnemonicReader/splitted/class_dev_5-splitted_5.preds'
-            qanet_prediction_file = 'QANet/splitted/answers_class_dev_5_reindexed_23.json'
-            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
 
+            # class_dev to obtain weights
+            dev_pattern_file = config.CLASS_DEV_CONFIG['dev_pattern_file']
+            models_to_process = config.CLASS_DEV_CONFIG['models_to_process']
             self.stats.type_to_count_dict = self.count_question_types(dev_pattern_file,print_latex)
             self.stats.print_latex = print_latex
 
@@ -249,9 +235,7 @@ class Analyser():
             weights = self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
 
             # dev_on_splitted to get candidate answers
-            qanet_prediction_file = 'QANet/splitted/dev_splitted_95_reindexed.json'
-            mnemonic_prediction_file = 'MnemonicReader/dev_95_splitted_model.preds'
-            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+            models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
             candidate_predictions = self.get_candidate_predictions(models_to_process)
             # pprint(candidate_predictions)
 
@@ -283,8 +267,6 @@ class Analyser():
 
             plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
             plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
-
-            # self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
 
 if __name__ == '__main__':
     ensembler = Ensembler()
