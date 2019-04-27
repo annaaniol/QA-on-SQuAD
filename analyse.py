@@ -21,6 +21,7 @@ class Analyser():
         self.metrics = SQuAD_metrics()
         self.stats = Stats()
         self.ensembler = Ensembler()
+        self.id_to_type_dict = {}
 
     def determine_type(self, question):
         question = question.lower()
@@ -90,11 +91,10 @@ class Analyser():
         stats_em = {}
         f1 = exact_match = total = 0
         eval_dict = {}
-        id_to_type_dict = {}
         for id, prediction in predictions.items():
             ground_truths_per_question = ground_truths[id]
             type = questions[id][0]
-            id_to_type_dict[id] = type
+            self.id_to_type_dict[id] = type
 
             exact_match_here = self.metrics.metric_max_over_ground_truths(
                 self.metrics.exact_match_score, prediction, ground_truths_per_question)
@@ -123,7 +123,7 @@ class Analyser():
         print('\n' + str(model_name) + ' ' + str(total) + ' evaluation questions')
         print('total F1 ' + str(f1))
         print('total EM ' + str(exact_match))
-        self.stats.add_model_data(eval_dict,id_to_type_dict,model_name)
+        self.stats.add_model_data(eval_dict,self.id_to_type_dict,model_name)
 
         result_dict = {}
         result_dict['f1'] = [stats_f1, f1]
@@ -158,6 +158,25 @@ class Analyser():
             print(tabulate(tabulate_table, headers, tablefmt="latex"))
         return type_to_count_dict
 
+    def get_candidate_predictions(self, models_to_process):
+        candidate_predictions = {}
+        for name, prediction_file in models_to_process:
+            with open(prediction_file) as f:
+                predictions_per_model = json.load(f)
+            candidate_predictions[name] = predictions_per_model
+        return candidate_predictions
+
+    def get_id_to_type_dict(self, dev_pattern_file):
+        id_to_type = {}
+        with open(dev_pattern_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)['data']
+            for article in data:
+                for paragraph in article['paragraphs']:
+                    for qa in paragraph['qas']:
+                        type = self.determine_type(qa['question'])
+                        id_to_type[qa['id']] = type
+        return id_to_type
+
     def main(self):
         parser = argparse.ArgumentParser()
         parser.add_argument('--type', dest='type', default='original')
@@ -177,7 +196,7 @@ class Analyser():
 
         if type == 'original':
             dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
-            bidaf_prediction_file = 'BiDAF/prediction0-epoch7.out'
+            bidaf_prediction_file = 'BiDAF/prediction0-epoch1.out'
             mnemonic_prediction_file = 'MnemonicReader/dev_full_training-m_reader.preds'
             rnet_prediction_file = 'R-net/SQuAD-dev-v1.1-r_net.preds'
             qanet_prediction_file = 'QANet/answers_reindexed.json'
@@ -190,35 +209,82 @@ class Analyser():
             qanet_prediction_file = 'QANet/splitted/answers_class_dev_5_reindexed_23.json'
 
             models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
-        elif type =='dev_on_splitted': # preds on original dev, trained with splitted training
+        elif type == 'dev_on_splitted': # preds on original dev, trained with splitted training
             dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
             qanet_prediction_file = 'QANet/splitted/dev_splitted_95_reindexed.json'
             mnemonic_prediction_file = 'MnemonicReader/dev_95_splitted_model.preds'
 
             models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+        elif type == 'ensemble':
+            # original dev to construct id_to_type_dict
+            dev_pattern_file = '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json'
+            id_to_type = self.get_id_to_type_dict(dev_pattern_file)
+            for k,v in id_to_type.items():
+                self.id_to_type_dict[k] = v
+                
+            # class_dev to obtain weights
+            dev_pattern_file = 'data/splitted/class_dev_5.json'
+            mnemonic_prediction_file = 'MnemonicReader/splitted/class_dev_5-splitted_5.preds'
+            qanet_prediction_file = 'QANet/splitted/answers_class_dev_5_reindexed_23.json'
+            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+
+            self.stats.type_to_count_dict = self.count_question_types(dev_pattern_file,print_latex)
+            self.stats.print_latex = print_latex
+
+            for model in models_to_process:
+                name = model[0]
+                file = model[1]
+                results = self.analyze_model(name, file, dev_pattern_file)
+                stats_f1_list.append(results['f1'][0])
+                f1_list.append(results['f1'][1])
+                stats_em_list.append(results['em'][0])
+                em_list.append(results['em'][1])
+                names_list.append(name)
+
+            self.stats.summarize()
+
+            plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
+            plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
+
+            weights = self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
+
+            # dev_on_splitted to get candidate answers
+            qanet_prediction_file = 'QANet/splitted/dev_splitted_95_reindexed.json'
+            mnemonic_prediction_file = 'MnemonicReader/dev_95_splitted_model.preds'
+            models_to_process = [('Mnemonic Reader', mnemonic_prediction_file), ('QANet', qanet_prediction_file)]
+            candidate_predictions = self.get_candidate_predictions(models_to_process)
+            # pprint(candidate_predictions)
+
+            # ensemble.predict to get ensemble answers -> save to file
+            ensemble_predictions = self.ensembler.predict(candidate_predictions, self.id_to_type_dict, weights)
+
+            # evaluate ensemble predictions (vs. full training results)
+
         else:
-            print('type must be original, class_dev or dev_on_splitted')
+            print('type must be original, class_dev, dev_on_splitted or ensemble')
             sys.exit(1)
 
         self.stats.type_to_count_dict = self.count_question_types(dev_pattern_file,print_latex)
         self.stats.print_latex = print_latex
 
-        for model in models_to_process:
-            name = model[0]
-            file = model[1]
-            results = self.analyze_model(name, file, dev_pattern_file)
-            stats_f1_list.append(results['f1'][0])
-            f1_list.append(results['f1'][1])
-            stats_em_list.append(results['em'][0])
-            em_list.append(results['em'][1])
-            names_list.append(name)
+        if type != 'ensemble':
+            for model in models_to_process:
+                name = model[0]
+                print('\nAnalysing {}...'.format(name))
+                file = model[1]
+                results = self.analyze_model(name, file, dev_pattern_file)
+                stats_f1_list.append(results['f1'][0])
+                f1_list.append(results['f1'][1])
+                stats_em_list.append(results['em'][0])
+                em_list.append(results['em'][1])
+                names_list.append(name)
 
-        self.stats.summarize()
+            self.stats.summarize()
 
-        plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
-        plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
+            plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
+            plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
 
-        self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
+            # self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
 
 if __name__ == '__main__':
     ensembler = Ensembler()

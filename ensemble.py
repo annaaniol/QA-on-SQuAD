@@ -5,7 +5,7 @@ import operator
 
 class Ensembler():
     def __init__(self):
-        self.weights = None
+        pass
 
     def get_metrics_by_type(self, stats_list, model_name_list):
         type_to_metrics_dict = {} # what -> {'mnemo':.0.8, 'qanet':0.75}
@@ -42,6 +42,18 @@ class Ensembler():
         type_to_leader_dict = self.get_best_model_by_type(type_to_metrics_dict)
         zero_one_weights_dict = self.get_zero_one_weights(type_to_metrics_dict)
 
-        self.weights = zero_one_weights_dict
-
         return zero_one_weights_dict
+
+    def predict(self, candidate_predictions, id_to_type_dict, weights):
+        # candidate_predictions = {model1: {id1: pred1, id2: pred2}, model2: {...}}
+        # weights = {type1: {model1: weight1, model2: weight}, type2: {...}}
+        id_to_predictions_dict = {} # id -> {pred1: 0.8, pred2: 03}
+
+        for model_name, predictions_dict in candidate_predictions.items():
+            for id, prediction in predictions_dict.items():
+                if id not in id_to_predictions_dict:
+                    id_to_predictions_dict[id] = []
+                question_type = id_to_type_dict[id]
+                id_to_predictions_dict[id].append((prediction,weights[question_type][model_name]))
+
+        pprint(id_to_predictions_dict)
