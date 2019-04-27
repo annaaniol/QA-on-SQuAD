@@ -88,7 +88,8 @@ class Stats():
         # print('same F1: {}'.format(str(len(same_F1))))
         print('mean of equal F1s: {}%'.format(str(round(100*np.mean(same_F1_values),1))))
         # print('same EM: {}'.format(str(len(same_EM))))
-        print('number of Trues in equal EMs: {}'.format(str(same_EM_values.count(True))))
+        true_percentage = round(100*same_EM_values.count(True)/len(same_EM_values),1)
+        print('number of Trues in equal EMs: {} ({}%)'.format(str(same_EM_values.count(True)),true_percentage))
 
         if missing > 0:
             print('WARNING: {} missmatched questions'.format(missing))

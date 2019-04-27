@@ -8,7 +8,8 @@ class Plotter():
         self.percentage = percentage
 
     def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name, type):
-        plt.rcParams["figure.figsize"] = (16,10)
+        plt.rcParams["figure.figsize"] = (14,9)
+        plt.rcParams["font.size"] = 17
         colors = ['r','g', 'grey']
         line_styles = ['--', '--', '--']
         distances = [-0.3, 0, 0.3]
