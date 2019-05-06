@@ -7,7 +7,7 @@ class Plotter():
         self.type = type
         self.percentage = percentage
 
-    def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name, type):
+    def plot_bar(self, stats_list, total_mean_list, model_name_list, metric_name, type=type):
         plt.rcParams["figure.figsize"] = (14,9)
         plt.rcParams["font.size"] = 17
         colors = ['red', 'green', 'grey', 'orange']
@@ -20,7 +20,6 @@ class Plotter():
             stats = model[0]
             total_mean = model[1]
             model_name = model[2]
-            print(counter,model_name)
 
             objects = list(stats.keys())
             y_pos = np.arange(len(objects))
@@ -36,9 +35,9 @@ class Plotter():
         plt.ylabel(metric_name)
         plt.xlabel('Question type')
         plt.title(metric_name)
-        plt.legend()
+        plt.legend(bbox_to_anchor=(0,1.04,1,0.2), loc="lower left", ncol=4)
 
-        if self.type == 'original':
+        if type == 'original':
             plt.savefig('plots/{}.jpg'.format(metric_name))
         else:
             plt.savefig('plots/splitted/{}_{}_{}.jpg'.format(metric_name,str(self.percentage),type))

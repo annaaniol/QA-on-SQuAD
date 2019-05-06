@@ -26,34 +26,44 @@ class Analyser():
 
     def determine_type(self, question):
         question = question.lower()
-        if 'how many' in question:
-            type = 'how many'
-        elif 'how much' in question:
-            type = 'how much'
-        elif 'how old' in question:
+
+        if question.startswith('how many') \
+            or question.startswith('how much'):
+            type = 'how m/m'
+        #
+        # elif 'how many' in question \
+        #     or 'how much' in question:
+        #     type = 'how m/m'
+
+        elif 'what time' in question:
+            type = 'what time'
+        elif 'how big' in question in question or 'what size' in question or 'what is the size' in question:
+            type = 'how big/size'
+        elif 'during' in question:
+            type = 'during'
+        elif 'whom' in question:
+            type = 'whom'
+
+        elif question.startswith('how old') or ', how old' in question:
             type = 'how old'
-        elif 'what' in question:
-            type = 'what'
-        elif 'why' in question:
+        elif question.startswith('why') or ', why' in question:
             type = 'why'
-        elif 'who' in question:
+        elif question.startswith('who') or ', who' in question:
             type = 'who'
-        elif 'how' in question:
-            type = 'how'
-        elif 'which' in question:
+        elif question.startswith('how are'):
+            type = 'how are'
+        elif question.startswith('in which') or question.startswith('at which') or question.startswith('which') or ', which' in question:
             type = 'which'
-        elif 'where' in question:
+        elif question.startswith('where is') or question.startswith('where are'):
             type = 'where'
-        elif 'when' in question:
+        elif question.startswith('when') or ', when' in question:
             type = 'when'
-        elif 'what for' in question:
-            type = 'what for'
-        elif question.startswith('is') or question.startswith('are') or question.startswith('was') or question.startswith('were') \
-         or question.startswith('has') or question.startswith('have') or question.startswith('had') or question.startswith('did') \
-         or question.startswith('does') or question.startswith('do') or question.startswith('can'):
-            type = 'yes-no'
+        elif question.startswith('at what') or question.startswith('in what') or question.startswith('what') or 'what' in question:
+            type = 'what'
         else:
+            # print(question)
             type = 'unknown'
+
         return type
 
     def analyze_model(self, model_name, model_prediction_file, dev_pattern_file):
@@ -230,14 +240,14 @@ class Analyser():
                 names_list.append(name)
 
             # self.stats.summarize()
-            plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
-            plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
+            plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', 'class_dev')
+            plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', 'class_dev')
 
             weights = self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
 
             # dev_on_splitted to get candidate answers
             print('\n 3. Step: dev_on_splitted to get candidate answers\n')
-            models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
+            models_to_process = config.ORIGINAL_CONFIG['models_to_process']
             candidate_predictions = self.get_candidate_predictions(models_to_process)
 
             # ensemble.predict to get ensemble answers -> save to file
@@ -246,11 +256,11 @@ class Analyser():
             with open(config.ENSEMBLE_FILE, 'w') as f:
                 json.dump(ensemble_predictions,f)
 
-            # evaluate ensemble predictions (vs. 95% of training results)
+            # evaluate ensemble predictions (vs. 100% of training results)
             # ??? vs. splitted or full training
-            print('\n 5. Step: evaluate ensemble predictions (vs. 95% of training results)\n')
-            dev_pattern_file =  config.DEV_ON_SPLITTED_CONFIG['dev_pattern_file']
-            models_to_process = config.DEV_ON_SPLITTED_CONFIG['models_to_process']
+            print('\n 5. Step: evaluate ensemble predictions (vs. 100% training results)\n')
+            dev_pattern_file =  config.ORIGINAL_CONFIG['dev_pattern_file']
+            models_to_process = config.ORIGINAL_CONFIG['models_to_process']
             models_to_process.append(('Ensemble',config.ENSEMBLE_FILE))
             print(models_to_process)
 
@@ -272,6 +282,7 @@ class Analyser():
 
             # self.stats.summarize()
 
+            plotter.type = 'ensemble'
             plotter.plot_bar(stats_f1_list, f1_list, names_list, 'F1', type)
             plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', type)
 
