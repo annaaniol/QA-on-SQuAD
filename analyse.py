@@ -1,9 +1,7 @@
 import json
 from pprint import pprint
-from collections import Counter
 import string
 import nltk
-import re
 import argparse
 import sys
 from SQuAD_metrics import SQuAD_metrics
@@ -26,15 +24,9 @@ class Analyser():
 
     def determine_type(self, question):
         question = question.lower()
-
         if question.startswith('how many') \
             or question.startswith('how much'):
             type = 'how m/m'
-        #
-        # elif 'how many' in question \
-        #     or 'how much' in question:
-        #     type = 'how m/m'
-
         elif 'what time' in question:
             type = 'what time'
         elif 'how big' in question in question or 'what size' in question or 'what is the size' in question:
@@ -43,7 +35,6 @@ class Analyser():
             type = 'during'
         elif 'whom' in question:
             type = 'whom'
-
         elif question.startswith('how old') or ', how old' in question:
             type = 'how old'
         elif question.startswith('why') or ', why' in question:
@@ -61,8 +52,7 @@ class Analyser():
         elif question.startswith('at what') or question.startswith('in what') or question.startswith('what') or 'what' in question:
             type = 'what'
         else:
-            # print(question)
-            type = 'unknown'
+            type = config.UNDEFINED_TYPE
 
         return type
 
@@ -78,21 +68,14 @@ class Analyser():
             data = json.load(f)['data']
             for article in data:
                 for paragraph in article['paragraphs']:
-                    # context = paragraph['context']
-                    # tokens = word_tokenize(context)
                     for qa in paragraph['qas']:
                         id = qa['id']
                         words = nltk.word_tokenize(qa['question'])
-                        # print(words)
                         questions_ids[qa['question']] = id
                         type = self.determine_type(qa['question'])
                         questions[id] = (type,qa['question'])
-                        # question = qa['question']
                         for ans in qa['answers']:
                             answer = ans['text']
-                            # s_idx = ans['answer_start']
-                            # e_idx = s_idx + len(answer)
-
                             if id not in ground_truths:
                                 ground_truths[id] = []
 
@@ -115,8 +98,6 @@ class Analyser():
             f1 += f1_here
             eval_dict[id] = {'em': exact_match_here, 'f1': f1_here}
             total += 1
-            # print('F1:' + str(f1_here))
-            # print('EM: ' + str(exact_match_here))
 
             if type in stats_f1:
                 stats_f1[type].append(f1_here)
@@ -244,6 +225,7 @@ class Analyser():
             plotter.plot_bar(stats_em_list, em_list, names_list, 'EM', 'class_dev')
 
             weights = self.ensembler.count_weights(stats_f1_list, names_list, 'F1')
+            weights_updated = self.ensembler.update_undefined_type_weight(weights,names_list,f1_list)
 
             # dev_on_splitted to get candidate answers
             print('\n 3. Step: dev_on_splitted to get candidate answers\n')
@@ -252,7 +234,7 @@ class Analyser():
 
             # ensemble.predict to get ensemble answers -> save to file
             print('\n 4. Step: ensemble.predict to get ensemble answers -> save to file\n')
-            ensemble_predictions = self.ensembler.predict(candidate_predictions, self.id_to_type_dict, weights)
+            ensemble_predictions = self.ensembler.predict(candidate_predictions, self.id_to_type_dict, weights_updated)
             with open(config.ENSEMBLE_FILE, 'w') as f:
                 json.dump(ensemble_predictions,f)
 

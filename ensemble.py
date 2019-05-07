@@ -2,6 +2,8 @@ import numpy as np
 from pprint import pprint
 import operator
 from SQuAD_metrics import SQuAD_metrics
+import config
+from operator import itemgetter
 
 
 class Ensembler():
@@ -26,7 +28,6 @@ class Ensembler():
         type_to_leader_dict = {} # what -> 'mnemo'
         for type, dict in type_to_metrics_dict.items():
             type_to_leader_dict[type] = max(dict.items(), key=operator.itemgetter(1))[0]
-        # pprint(type_to_leader_dict)
         return type_to_leader_dict
 
     def get_proportional_weights(self, type_to_metrics_dict):
@@ -35,7 +36,6 @@ class Ensembler():
             proportional_weights_dict[type] = {}
             for model, metric_score in dict.items():
                 proportional_weights_dict[type][model] = metric_score
-        # pprint(zero_one_weights_dict)
         return proportional_weights_dict
 
     def get_zero_one_weights(self, type_to_metrics_dict):
@@ -45,16 +45,20 @@ class Ensembler():
             zero_one_weights_dict[type][max(dict.items(), key=operator.itemgetter(1))[0]] = 1.0
             for model, _ in sorted(dict.items(), key=operator.itemgetter(1), reverse=True)[1:]:
                 zero_one_weights_dict[type][model] = 0.0
-        # pprint(zero_one_weights_dict)
         return zero_one_weights_dict
 
     def count_weights(self, stats_list, model_name_list, metric):
         type_to_metrics_dict = self.get_metrics_by_type(stats_list,model_name_list)
-        # pprint(type_to_metrics_dict)
         type_to_leader_dict = self.get_best_model_by_type(type_to_metrics_dict)
         weights_dict = self.get_proportional_weights(type_to_metrics_dict)
-        weights_dict['unknown']['Mnemonic Reader'] = 1.0
 
+        return weights_dict
+
+    def update_undefined_type_weight(self, weights_dict, names_list, f1_list):
+        zipped = zip(names_list,f1_list)
+        highest_f1_model_name = max(zipped,key=itemgetter(1))[0]
+
+        weights_dict[config.UNDEFINED_TYPE][highest_f1_model_name] = 1.0
         return weights_dict
 
     def predict(self, candidate_predictions, id_to_type_dict, weights):
@@ -73,7 +77,6 @@ class Ensembler():
                 else:
                     id_to_predictions_dict[id][prediction] = weights[question_type][model_name]
 
-        # pprint(id_to_predictions_dict)
         ensemble_predictions = {}
         for id, predictions in id_to_predictions_dict.items():
             predictions_list = sorted(predictions.items(), key=operator.itemgetter(1), reverse=True)

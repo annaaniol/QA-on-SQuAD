@@ -1,7 +1,6 @@
 ORIGINAL_FILES = {
     'dev_pattern_file': '../BiDAF/BiDAF-pytorch/.data/squad/dev-v1.1.json',
     'bidaf_prediction_file': 'BiDAF/prediction0-epoch24.out',
-    # 'mnemonic_prediction_file': 'MnemonicReader/dev_full_training-m_reader.preds',
     'mnemonic_prediction_file': 'MnemonicReader/full-dev-26.preds',
     'rnet_prediction_file': 'R-net/SQuAD-dev-v1.1-r_net.preds',
     'qanet_prediction_file': 'QANet/answers_reindexed.json',
@@ -44,3 +43,6 @@ DEV_ON_SPLITTED_CONFIG = {
 }
 
 ENSEMBLE_FILE = 'ensemble/predictions.json'
+
+
+UNDEFINED_TYPE = 'undefined'

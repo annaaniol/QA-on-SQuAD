@@ -6,7 +6,6 @@ from collections import Counter
 import string
 import nltk
 import re
-import argparse
 import sys
 
 class SQuAD_metrics():
@@ -41,8 +40,6 @@ class SQuAD_metrics():
 
 
     def exact_match_score(self, prediction, ground_truth):
-        # print('prediction: ' + str(normalize_answer(prediction)))
-        # print('ground_truth: '+ str(normalize_answer(ground_truth)))
         return (self.normalize_answer(prediction) == self.normalize_answer(ground_truth))
 
 
